@@ -74,6 +74,13 @@ func main() {
 			continue
 		}
 
+		// A running /devices menu is modal: every line is a menu selection,
+		// not a command or a message to Hannah, until the menu is closed.
+		if s.menu != nil {
+			handleMenuInput(s, text)
+			continue
+		}
+
 		if strings.HasPrefix(text, "/") {
 			if !dispatchLocalCommand(s, text) {
 				fmt.Printf("Unknown command: %s\n\n", strings.Fields(text)[0])

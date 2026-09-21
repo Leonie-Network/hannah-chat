@@ -75,6 +75,22 @@ func (c *Client) Login(ctx context.Context, username, password string) (*pb.User
 	})
 }
 
+// GetDevices returns every room and its devices, including writable states
+// and their types — the data the /devices menu is built from.
+func (c *Client) GetDevices(ctx context.Context) (*pb.GetDevicesResponse, error) {
+	return c.stub.GetDevices(ctx, &pb.Empty{})
+}
+
+// ControlDevice sets a single device state directly (bypassing NLU), e.g.
+// state="on" value="true", or state="level" value="50".
+func (c *Client) ControlDevice(ctx context.Context, deviceID, state, value string) (*pb.StatusResponse, error) {
+	return c.stub.ControlDevice(ctx, &pb.ControlDeviceRequest{
+		DeviceId: deviceID,
+		State:    state,
+		Value:    value,
+	})
+}
+
 // LinkAccount ties a roomie to an external account under the given provider —
 // used after Login to self-link the roomie's own ID under provider "chat"
 // (gessinger/voice/hannah#332), so later SubmitText calls with the same
