@@ -65,3 +65,24 @@ func (c *Client) SubmitText(ctx context.Context, text, sourceService, sourceUser
 		SourceUserId:  sourceUserID,
 	})
 }
+
+// Login authenticates against Hannah's user registry. resp.Found is false on
+// wrong credentials (not an error) — resp.User is only valid when Found is true.
+func (c *Client) Login(ctx context.Context, username, password string) (*pb.UserResponse, error) {
+	return c.stub.Login(ctx, &pb.LoginRequest{
+		Username: username,
+		Password: password,
+	})
+}
+
+// LinkAccount ties a roomie to an external account under the given provider —
+// used after Login to self-link the roomie's own ID under provider "chat"
+// (gessinger/voice/hannah#332), so later SubmitText calls with the same
+// source_service/source_user_id resolve back to that roomie.
+func (c *Client) LinkAccount(ctx context.Context, userID int32, service, accountID string) (*pb.StatusResponse, error) {
+	return c.stub.LinkAccount(ctx, &pb.LinkAccountRequest{
+		UserId:    userID,
+		Service:   service,
+		AccountId: accountID,
+	})
+}

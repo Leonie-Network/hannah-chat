@@ -61,6 +61,7 @@ func main() {
 	fmt.Println()
 
 	scanner := bufio.NewScanner(os.Stdin)
+	s := newSession(client, scanner)
 	for {
 		fmt.Print("You: ")
 		if !scanner.Scan() {
@@ -73,7 +74,14 @@ func main() {
 			continue
 		}
 
-		resp, err := client.SubmitText(context.Background(), text, "chat", "chat")
+		if strings.HasPrefix(text, "/") {
+			if !dispatchLocalCommand(s, text) {
+				fmt.Printf("Unknown command: %s\n\n", strings.Fields(text)[0])
+			}
+			continue
+		}
+
+		resp, err := client.SubmitText(context.Background(), text, s.sourceService, s.sourceUserID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "gRPC error: %v\n", err)
 			continue
