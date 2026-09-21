@@ -6,10 +6,10 @@ import (
 
 func init() {
 	registerCommand(localCommand{
-		name:        "exit",
-		help:        "exit the chat client",
+		name:       "exit",
+		help:       "exit the chat client",
 		trustLevel: 0,
-		run:         cmdExit,
+		run:        cmdExit,
 	})
 }
 
