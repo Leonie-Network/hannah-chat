@@ -18,6 +18,8 @@ type session struct {
 	// authenticated roomie's own ID once self-linked (gessinger/voice/hannah#332).
 	sourceService string
 	sourceUserID  string
+
+	trustLevel int // Trust Level of the current session
 }
 
 func newSession(client *hannah.Client, scanner *bufio.Scanner) *session {
