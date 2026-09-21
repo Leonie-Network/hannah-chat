@@ -20,6 +20,11 @@ type session struct {
 	sourceUserID  string
 
 	trustLevel int // Trust Level of the current session
+
+	// menu holds the state of an open /devices menu; nil when none is open. While
+	// set, every input line is consumed by the menu instead of the normal command
+	// dispatch / SubmitText path (see main.go's input loop).
+	menu *deviceMenu
 }
 
 func newSession(client *hannah.Client, scanner *bufio.Scanner) *session {
