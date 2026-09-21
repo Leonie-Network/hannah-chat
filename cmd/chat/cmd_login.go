@@ -13,17 +13,17 @@ import (
 
 func init() {
 	registerCommand(localCommand{
-		name:        "login",
-		help:        "log in as a Hannah user",
+		name:       "login",
+		help:       "log in as a Hannah user",
 		trustLevel: 0,
-		run:         cmdLogin,
+		run:        cmdLogin,
 	})
 
 	registerCommand(localCommand{
-		name:        "logout",
-		help:        "log out, so Hannah forgets who it's talking to",
+		name:       "logout",
+		help:       "log out, so Hannah forgets who it's talking to",
 		trustLevel: 0,
-		run:         cmdLogout,
+		run:        cmdLogout,
 	})
 }
 
@@ -82,7 +82,7 @@ func cmdLogin(s *session) {
 }
 
 func cmdLogout(s *session) {
-	s.sourceUserID = ""
+	s.sourceUserID = "chat"
 	s.trustLevel = 0
 	fmt.Println("Logged out.")
 }

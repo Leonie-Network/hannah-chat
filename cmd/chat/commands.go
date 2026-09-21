@@ -1,18 +1,18 @@
 package main
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 )
 
 // localCommand is a "/name ..." line handled entirely client-side — never sent
 // to Hannah as text. Add new ones by appending to localCommands below; nothing
 // else needs to change to make a new command reachable from the prompt.
 type localCommand struct {
-	name string // without the leading "/"
-	help string
+	name       string // without the leading "/"
+	help       string
 	trustLevel int
-	run  func(s *session)
+	run        func(s *session)
 }
 
 var registry = make(map[string]localCommand)
@@ -39,14 +39,13 @@ func dispatchLocalCommand(s *session, line string) bool {
 		return false
 	}
 
-	// Trust Level prüfen
+	// Check trust level
 	if s.trustLevel < cmd.trustLevel {
-		fmt.Printf("Befehl '/%s' erfordert höhere Rechte (Benötigt: %d, Aktuell: %d).\n\n", 
+		fmt.Printf("Command '/%s' requires higher permissions (required: %d, current: %d).\n\n",
 			name, cmd.trustLevel, s.trustLevel)
-		return true // Befehl existiert, aber Rechte reichen nicht
+		return true // command exists, but permissions are insufficient
 	}
 
 	cmd.run(s)
 	return true
 }
-
