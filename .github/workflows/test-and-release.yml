@@ -65,6 +65,6 @@ jobs:
           CGO_ENABLED: 0
         run: go build -o hannah-chat-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} ./cmd/chat
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: hannah-chat-${{ github.ref_name }}-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
