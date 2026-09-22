@@ -19,6 +19,8 @@ type session struct {
 	sourceService string
 	sourceUserID  string
 
+	name string // Username of the current session (if logged in)
+
 	trustLevel int // Trust Level of the current session
 
 	// menu holds the state of an open /devices menu; nil when none is open. While
@@ -33,5 +35,6 @@ func newSession(client *hannah.Client, scanner *bufio.Scanner) *session {
 		scanner:       scanner,
 		sourceService: "chat",
 		sourceUserID:  "chat",
+		name:          "You",
 	}
 }

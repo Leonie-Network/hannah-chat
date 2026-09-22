@@ -78,11 +78,13 @@ func cmdLogin(s *session) {
 	if name == "" {
 		name = resp.User.UserName
 	}
+	s.name = name
 	fmt.Printf("Logged in as %s.\n\n", name)
 }
 
 func cmdLogout(s *session) {
 	s.sourceUserID = "chat"
 	s.trustLevel = 0
+	s.name = "You"
 	fmt.Println("Logged out.")
 }
