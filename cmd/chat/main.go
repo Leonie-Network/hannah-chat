@@ -13,16 +13,86 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
+
 	"hannah-chat/internal/config"
 	"hannah-chat/internal/hannah"
 )
 
+var startupTips = []string{
+	"Type /help to see all available commands.",
+	"You can log in with /login to access user-specific features.",
+	"Use Ctrl+C or Ctrl+D at any time to disconnect cleanly.",
+	"Logged-in users get access to device control via /devices.",
+}
+
+func printStartupTip() {
+	dimmed := color.New(color.FgHiBlack, color.Italic).SprintFunc()
+
+	tip := startupTips[rand.Intn(len(startupTips))]
+
+	fmt.Printf("%s\n\n", dimmed("Tip: "+tip))
+}
+
+// bannerGlyphs is a 5-row block font, one entry per letter used in "HANNAH".
+// Each glyph is 5 characters wide so rows line up regardless of which
+// letters they spell — no hand-counted spacing to get wrong.
+var bannerGlyphs = map[byte][5]string{
+	'H': {
+		"█   █",
+		"█   █",
+		"█████",
+		"█   █",
+		"█   █",
+	},
+	'A': {
+		" ███ ",
+		"█   █",
+		"█████",
+		"█   █",
+		"█   █",
+	},
+	'N': {
+		"█   █",
+		"██  █",
+		"█ █ █",
+		"█  ██",
+		"█   █",
+	},
+}
+
+// bannerText renders word as block-letter ASCII art, one space between glyphs.
+func bannerText(word string) string {
+	rows := make([]string, 5)
+	for i := 0; i < len(word); i++ {
+		glyph := bannerGlyphs[word[i]]
+		for r := range rows {
+			if i > 0 {
+				rows[r] += " "
+			}
+			rows[r] += glyph[r]
+		}
+	}
+	return strings.Join(rows, "\n")
+}
+
+func printBanner() {
+	cyan := color.New(color.FgCyan, color.Bold).SprintFunc()
+	dimmed := color.New(color.FgHiBlack).SprintFunc()
+
+	fmt.Println(cyan(bannerText("HANNAH")) + dimmed("  | Smart Assistant"))
+	fmt.Println()
+}
+
 func main() {
+	printBanner()
+
 	cfgPath := flag.String("config", "config.yaml", "path to config.yaml")
 	flag.Parse()
 
@@ -57,8 +127,10 @@ func main() {
 		os.Exit(0)
 	}()
 
-	fmt.Println("Connected. Type your command (Ctrl+C or Ctrl+D to quit).")
+	color.Green("Connected. Type your command (Ctrl+C or Ctrl+D to quit).")
 	fmt.Println()
+
+	printStartupTip()
 
 	scanner := bufio.NewScanner(os.Stdin)
 	s := newSession(client, scanner)
