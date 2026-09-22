@@ -62,8 +62,9 @@ func main() {
 
 	scanner := bufio.NewScanner(os.Stdin)
 	s := newSession(client, scanner)
+
 	for {
-		fmt.Print("You: ")
+		fmt.Print(s.name + ": ")
 		if !scanner.Scan() {
 			fmt.Println()
 			break
