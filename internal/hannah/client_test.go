@@ -25,6 +25,11 @@ func (v1Core) SubmitText(_ context.Context, req *pb.SubmitTextRequest) (*pb.Subm
 	return &pb.SubmitTextResponse{Answer: "v1:" + req.Text}, nil
 }
 
+// ControlDevice echoes the requesting user so the test can check it arrives.
+func (v1Core) ControlDevice(_ context.Context, req *pb.ControlDeviceRequest) (*pb.StatusResponse, error) {
+	return &pb.StatusResponse{Ok: true, Message: req.SourceService + ":" + req.SourceUserId}, nil
+}
+
 type legacyCore struct {
 	legacy.UnimplementedHannahServiceServer
 }
@@ -83,5 +88,25 @@ func TestSubmitText_UsesThePathCoreServes(t *testing.T) {
 				t.Fatalf("answer = %q, want %q", resp.Answer, tc.want)
 			}
 		})
+	}
+}
+
+// gessinger/voice/hannah#366: the requesting user travels with ControlDevice so
+// Core can check the state's minimum trust level.
+func TestControlDevice_SendsRequestingUser(t *testing.T) {
+	c, err := NewClient(startCore(t, true, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	resp, err := c.ControlDevice(ctx, "dev", "on", "true", "chat", "42")
+	if err != nil {
+		t.Fatalf("ControlDevice: %v", err)
+	}
+	if resp.Message != "chat:42" {
+		t.Fatalf("source = %q, want %q", resp.Message, "chat:42")
 	}
 }

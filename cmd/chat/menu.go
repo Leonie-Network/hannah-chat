@@ -355,7 +355,7 @@ func handleActionsInput(s *session, line string) {
 func applyControl(s *session, deviceID, key, value string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	resp, err := s.client.ControlDevice(ctx, deviceID, key, value)
+	resp, err := s.client.ControlDevice(ctx, deviceID, key, value, s.sourceService, s.sourceUserID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "control failed: %v\n\n", err)
 		return
