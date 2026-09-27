@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	pb "github.com/NurPech/hannah-proto-go/v4"
+	pb "github.com/NurPech/hannah-proto-go/v4/hannahv1"
 )
 
 func TestParseChoice(t *testing.T) {
