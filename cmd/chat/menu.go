@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	pb "github.com/NurPech/hannah-proto-go/v4"
+	pb "github.com/NurPech/hannah-proto-go/v4/hannahv1"
 )
 
 // deviceMenuTrustLevel mirrors the Telegram bot's _MENU_TRUST_MIN

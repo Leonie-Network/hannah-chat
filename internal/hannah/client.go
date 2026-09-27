@@ -5,13 +5,15 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/NurPech/hannah-proto-go/v4"
+	pb "github.com/NurPech/hannah-proto-go/v4/hannahv1"
+	"gitlab.com/gessinger/hannah-grpc-lib/go/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Client is a gRPC client to Hannah Core.
+// Client is a gRPC client to Hannah Core. It works with hannah.v1 types only; against a
+// Core too old for hannah.v1, calls go to the unversioned N−1 path instead (the probe and
+// the one-time warning come from hannah-grpc-lib's client package).
 type Client struct {
 	conn *grpc.ClientConn
 	stub pb.HannahServiceClient
@@ -19,20 +21,16 @@ type Client struct {
 
 // NewClient dials Hannah Core at address (e.g. "192.0.2.1:50051").
 func NewClient(address string) (*Client, error) {
-	conn, err := grpc.NewClient(address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	// client.DialOptions: insecure transport, x-proto-version and x-compat-version
+	// (hannah-proto#9/hannah#217) on every call, x-compat-version per service path.
+	opts := append(client.DialOptions(),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(32*1024*1024)),
-		// compat_version (hannah-proto#9/hannah#217) runs additively next to
-		// the version_interceptor.go pair above, not as a replacement — a
-		// breaking change scoped to one message no longer has to reject
-		// every client, only calls that actually use the affected message.
-		grpc.WithChainUnaryInterceptor(versionUnaryInterceptor, pb.CompatVersionUnaryClientInterceptor),
-		grpc.WithChainStreamInterceptor(versionStreamInterceptor, pb.CompatVersionStreamClientInterceptor),
 	)
+	conn, err := grpc.NewClient(address, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial %q: %w", address, err)
 	}
-	return &Client{conn: conn, stub: pb.NewHannahServiceClient(conn)}, nil
+	return &Client{conn: conn, stub: pb.NewHannahServiceClient(client.New(conn, nil))}, nil
 }
 
 // Close tears down the gRPC connection.
