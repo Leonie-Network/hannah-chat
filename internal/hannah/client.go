@@ -80,12 +80,16 @@ func (c *Client) GetDevices(ctx context.Context) (*pb.GetDevicesResponse, error)
 }
 
 // ControlDevice sets a single device state directly (bypassing NLU), e.g.
-// state="on" value="true", or state="level" value="50".
-func (c *Client) ControlDevice(ctx context.Context, deviceID, state, value string) (*pb.StatusResponse, error) {
+// state="on" value="true", or state="level" value="50". sourceService/sourceUserID
+// identify the requesting user like on SubmitText, so Core can check the state's
+// minimum trust level (gessinger/voice/hannah#366); unknown = guest.
+func (c *Client) ControlDevice(ctx context.Context, deviceID, state, value, sourceService, sourceUserID string) (*pb.StatusResponse, error) {
 	return c.stub.ControlDevice(ctx, &pb.ControlDeviceRequest{
-		DeviceId: deviceID,
-		State:    state,
-		Value:    value,
+		DeviceId:      deviceID,
+		State:         state,
+		Value:         value,
+		SourceService: sourceService,
+		SourceUserId:  sourceUserID,
 	})
 }
 
