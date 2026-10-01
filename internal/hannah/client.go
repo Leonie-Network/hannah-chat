@@ -5,15 +5,15 @@ import (
 	"context"
 	"fmt"
 
-	pb "github.com/NurPech/hannah-proto-go/v4/hannahv1"
+	pb "github.com/NurPech/hannah-proto-go/v5/hannahv2"
 	"gitlab.com/gessinger/hannah-grpc-lib/go/client"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
 
-// Client is a gRPC client to Hannah Core. It works with hannah.v1 types only; against a
-// Core too old for hannah.v1, calls go to the unversioned N−1 path instead (the probe and
-// the one-time warning come from hannah-grpc-lib's client package).
+// Client is a gRPC client to Hannah Core. It works with hannah.v2 types only; against a
+// Core too old for hannah.v2, hannah-grpc-lib translates the calls to hannah.v1 (N−1) on
+// its own (the probe and the one-time warning come from its client package).
 type Client struct {
 	conn *grpc.ClientConn
 	stub pb.HannahServiceClient
@@ -30,7 +30,7 @@ func NewClient(address string) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial %q: %w", address, err)
 	}
-	return &Client{conn: conn, stub: pb.NewHannahServiceClient(client.New(conn, nil))}, nil
+	return &Client{conn: conn, stub: pb.NewHannahServiceClient(client.New(conn, nil).Translated())}, nil
 }
 
 // Close tears down the gRPC connection.
@@ -73,20 +73,21 @@ func (c *Client) Login(ctx context.Context, username, password string) (*pb.User
 	})
 }
 
-// GetDevices returns every room and its devices, including writable states
-// and their types — the data the /devices menu is built from.
+// GetDevices returns every room and its devices as device class plus slots, with the
+// slots' current values and whether they are writable — the data the /devices menu is
+// built from.
 func (c *Client) GetDevices(ctx context.Context) (*pb.GetDevicesResponse, error) {
 	return c.stub.GetDevices(ctx, &pb.Empty{})
 }
 
-// ControlDevice sets a single device state directly (bypassing NLU), e.g.
-// state="on" value="true", or state="level" value="50". sourceService/sourceUserID
-// identify the requesting user like on SubmitText, so Core can check the state's
-// minimum trust level (gessinger/voice/hannah#366); unknown = guest.
-func (c *Client) ControlDevice(ctx context.Context, deviceID, state, value, sourceService, sourceUserID string) (*pb.StatusResponse, error) {
+// ControlDevice sets a single slot directly (bypassing NLU), e.g. slot "on" to a
+// boolean or slot "brightness" to a number in the slot's documented scale.
+// sourceService/sourceUserID identify the requesting user like on SubmitText, so Core
+// can check the slot's minimum trust level (gessinger/voice/hannah#366); unknown = guest.
+func (c *Client) ControlDevice(ctx context.Context, deviceID, slotID string, value *pb.SlotValue, sourceService, sourceUserID string) (*pb.StatusResponse, error) {
 	return c.stub.ControlDevice(ctx, &pb.ControlDeviceRequest{
 		DeviceId:      deviceID,
-		State:         state,
+		SlotId:        slotID,
 		Value:         value,
 		SourceService: sourceService,
 		SourceUserId:  sourceUserID,
