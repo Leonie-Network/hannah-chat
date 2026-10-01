@@ -4,35 +4,17 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	pb "github.com/NurPech/hannah-proto-go/v4/hannahv1"
+	pb "github.com/NurPech/hannah-proto-go/v5/hannahv2"
 )
 
 // deviceMenuTrustLevel mirrors the Telegram bot's _MENU_TRUST_MIN
 // (telegram/hannah_telegram/bot.py) so both chat clients gate device
 // control at the same trust level.
 const deviceMenuTrustLevel = 7
-
-// _CATEGORY_ICONS in bot.py, kept in sync — category names come from
-// ioBroker (German) and are data, not translated project text.
-var categoryIcons = map[string]string{
-	"Licht":        "💡",
-	"Stecker":      "🔌",
-	"Temperaturen": "🌡️",
-	"Fenster":      "🪟",
-	"Helligkeit":   "☀️",
-}
-
-func categoryIcon(category string) string {
-	if icon, ok := categoryIcons[category]; ok {
-		return icon
-	}
-	return "⚙️"
-}
 
 // menuStep is a single screen of the /devices menu.
 type menuStep int
@@ -54,11 +36,11 @@ type deviceMenu struct {
 	room   int
 	device int
 
-	// valueKey/valueOptions are only valid during menuStepValueInput/menuStepEnumSelect:
-	// the state key being set, and — for ENUM/COLOR — the ordered raw values behind
-	// the numbered list just shown (index i -> valueOptions[i]).
-	valueKey     string
-	valueOptions []string
+	// valueSlot/valueChoices are only valid during menuStepValueInput/menuStepEnumSelect:
+	// the ID of the slot being set, and — for a list of values — the choices behind the
+	// numbered list just shown (index i -> valueChoices[i]).
+	valueSlot    string
+	valueChoices []choice
 }
 
 // startDeviceMenu opens the /devices menu at the room list.
@@ -171,21 +153,10 @@ func showDevices(s *session) {
 	room := resp.Rooms[s.menu.room]
 	fmt.Printf("%s — devices:\n", room.Name)
 	for i, dev := range room.Devices {
-		fmt.Printf(" %d. %s %s %s\n", i+1, statusDot(dev), categoryIcon(dev.Category), dev.Name)
+		fmt.Printf(" %d. %s %s %s\n", i+1, statusDot(dev), deviceIcon(dev), dev.Name)
 	}
 	fmt.Println(" 0. Back")
 	fmt.Println()
-}
-
-func statusDot(dev *pb.DeviceInfo) string {
-	switch dev.Current["on"] {
-	case "True":
-		return "🟢"
-	case "False":
-		return "🔴"
-	default:
-		return "⚫"
-	}
 }
 
 func handleDevicesInput(s *session, line string) {
@@ -226,33 +197,6 @@ func handleDevicesInput(s *session, line string) {
 // ------------------------------------------------------------------
 // Actions
 
-// writableActions returns the device's writable state keys, sorted for a
-// stable, deterministic menu order (index i in the printed list always maps
-// to writableActions(dev)[i]).
-func writableActions(dev *pb.DeviceInfo) []string {
-	keys := make([]string, 0, len(dev.States))
-	for _, k := range dev.States {
-		if dev.StateWritable[k] {
-			keys = append(keys, k)
-		}
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func actionLabel(dev *pb.DeviceInfo, key string) string {
-	if key == "on" && dev.StateTypes[key] == pb.StateType_BOOLEAN {
-		if dev.Current["on"] == "True" {
-			return "Turn off"
-		}
-		return "Turn on"
-	}
-	if cur, ok := dev.Current[key]; ok {
-		return fmt.Sprintf("Set %s (current: %s)", key, cur)
-	}
-	return fmt.Sprintf("Set %s", key)
-}
-
 // currentDeviceAndRoom re-fetches devices and resolves the menu's current
 // room/device indices against it, falling back a screen if either no longer
 // exists (device list changed underneath the open menu).
@@ -282,23 +226,20 @@ func showActions(s *session) {
 		return
 	}
 
-	fmt.Printf("%s (%s)\n", dev.Name, dev.Category)
-	keys := make([]string, 0, len(dev.Current))
-	for k := range dev.Current {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		fmt.Printf("  %s: %s\n", k, dev.Current[k])
+	fmt.Printf("%s (%s)\n", dev.Name, deviceLabel(dev))
+	for _, slot := range sortedSlots(dev) {
+		if cur, ok := formatSlotValue(slot); ok {
+			fmt.Printf("  %s: %s\n", slotName(slot), cur)
+		}
 	}
 	fmt.Println()
 
-	actions := writableActions(dev)
-	for i, key := range actions {
-		fmt.Printf(" %d. %s\n", i+1, actionLabel(dev, key))
+	actions := writableSlots(dev)
+	for i, slot := range actions {
+		fmt.Printf(" %d. %s\n", i+1, actionLabel(slot))
 	}
 	if len(actions) == 0 {
-		fmt.Println("(no controllable states)")
+		fmt.Println("(no controllable slots)")
 	}
 	fmt.Println(" 0. Back")
 	fmt.Println()
@@ -322,40 +263,36 @@ func handleActionsInput(s *session, line string) {
 	if !ok {
 		return
 	}
-	actions := writableActions(dev)
+	actions := writableSlots(dev)
 	if choice > len(actions) {
 		fmt.Println("Invalid selection.")
 		fmt.Println()
 		showActions(s)
 		return
 	}
-	key := actions[choice-1]
+	slot := actions[choice-1]
 
-	switch dev.StateTypes[key] {
-	case pb.StateType_BOOLEAN:
-		value := "true"
-		if dev.Current[key] == "True" {
-			value = "false"
-		}
-		applyControl(s, dev.Id, key, value)
+	switch controlFor(slot) {
+	case controlToggle:
+		applyControl(s, dev.Id, slot.SlotId, toggleValue(slot))
 		showActions(s)
 
-	case pb.StateType_ENUM, pb.StateType_COLOR:
-		s.menu.valueKey = key
+	case controlChoice:
+		s.menu.valueSlot = slot.SlotId
 		s.menu.step = menuStepEnumSelect
-		showEnumOptions(s, dev, key)
+		showChoices(s, slot)
 
-	default: // NUMERIC, TEXT, unspecified
-		s.menu.valueKey = key
+	default: // number or free text
+		s.menu.valueSlot = slot.SlotId
 		s.menu.step = menuStepValueInput
-		fmt.Printf("Enter new value for %s (empty to cancel): ", key)
+		fmt.Printf("Enter new value for %s (empty to cancel): ", slotName(slot))
 	}
 }
 
-func applyControl(s *session, deviceID, key, value string) {
+func applyControl(s *session, deviceID, slotID string, value *pb.SlotValue) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	resp, err := s.client.ControlDevice(ctx, deviceID, key, value, s.sourceService, s.sourceUserID)
+	resp, err := s.client.ControlDevice(ctx, deviceID, slotID, value, s.sourceService, s.sourceUserID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "control failed: %v\n\n", err)
 		return
@@ -365,55 +302,69 @@ func applyControl(s *session, deviceID, key, value string) {
 	}
 }
 
+// findSlot is the device's slot with the given ID, or nil.
+func findSlot(dev *pb.DeviceInfo, slotID string) *pb.Slot {
+	for _, slot := range dev.Slots {
+		if slot.SlotId == slotID {
+			return slot
+		}
+	}
+	return nil
+}
+
+// applyText sets the slot of the menu's current device to the typed or listed text.
+func applyText(s *session, slotID, text string) {
+	_, dev, ok := currentDeviceAndRoom(s)
+	if !ok {
+		return
+	}
+	slot := findSlot(dev, slotID)
+	if slot == nil {
+		fmt.Println("Slot no longer available.")
+		fmt.Println()
+		showActions(s)
+		return
+	}
+	value, err := slotValueFromText(slot, text)
+	if err != nil {
+		fmt.Printf("Invalid value: %v\n\n", err)
+		showActions(s)
+		return
+	}
+	applyControl(s, dev.Id, slotID, value)
+	showActions(s)
+}
+
 // ------------------------------------------------------------------
-// Free-form value input (NUMERIC/TEXT)
+// Free-form value input (number/text)
 
 func handleValueInput(s *session, line string) {
-	value := strings.TrimSpace(line)
-	key := s.menu.valueKey
-	s.menu.valueKey = ""
+	text := strings.TrimSpace(line)
+	slotID := s.menu.valueSlot
+	s.menu.valueSlot = ""
 	s.menu.step = menuStepActions
 
-	if value == "" {
+	if text == "" {
 		fmt.Println("Cancelled.")
 		fmt.Println()
 		showActions(s)
 		return
 	}
-
-	_, dev, ok := currentDeviceAndRoom(s)
-	if !ok {
-		return
-	}
-	applyControl(s, dev.Id, key, value)
-	showActions(s)
+	applyText(s, slotID, text)
 }
 
 // ------------------------------------------------------------------
-// ENUM/COLOR value selection
+// Value selection from a list (colors, a slot's options)
 
-func showEnumOptions(s *session, dev *pb.DeviceInfo, key string) {
-	enum := dev.StateEnumValues[key]
-	var raw []string
-	if enum != nil {
-		for v := range enum.Values {
-			raw = append(raw, v)
-		}
-		sort.Strings(raw)
-	}
-	s.menu.valueOptions = raw
+func showChoices(s *session, slot *pb.Slot) {
+	choices := choicesFor(slot)
+	s.menu.valueChoices = choices
 
-	fmt.Printf("Choose a value for %s:\n", key)
-	for i, v := range raw {
-		label := v
-		if enum != nil {
-			if l, ok := enum.Values[v]; ok && l != "" {
-				label = l
-			}
-		}
-		fmt.Printf(" %d. %s\n", i+1, label)
+	fmt.Printf("Choose a value for %s:\n", slotName(slot))
+	for i, c := range choices {
+		fmt.Printf(" %d. %s\n", i+1, c.label)
 	}
-	if len(raw) == 0 {
+	if len(choices) == 0 {
 		fmt.Println("(no known values — back out and use another action)")
 	}
 	fmt.Println(" 0. Back")
@@ -421,17 +372,17 @@ func showEnumOptions(s *session, dev *pb.DeviceInfo, key string) {
 }
 
 func handleEnumInput(s *session, line string) {
-	choice, ok := parseChoice(line)
+	n, ok := parseChoice(line)
 	if !ok {
 		fmt.Println("Please enter a number from the list.")
 		fmt.Println()
 		return
 	}
-	if choice == 0 || choice > len(s.menu.valueOptions) {
-		s.menu.valueKey = ""
-		s.menu.valueOptions = nil
+	if n == 0 || n > len(s.menu.valueChoices) {
+		s.menu.valueSlot = ""
+		s.menu.valueChoices = nil
 		s.menu.step = menuStepActions
-		if choice != 0 {
+		if n != 0 {
 			fmt.Println("Invalid selection.")
 			fmt.Println()
 		}
@@ -439,16 +390,10 @@ func handleEnumInput(s *session, line string) {
 		return
 	}
 
-	value := s.menu.valueOptions[choice-1]
-	key := s.menu.valueKey
-	s.menu.valueKey = ""
-	s.menu.valueOptions = nil
+	text := s.menu.valueChoices[n-1].text
+	slotID := s.menu.valueSlot
+	s.menu.valueSlot = ""
+	s.menu.valueChoices = nil
 	s.menu.step = menuStepActions
-
-	_, dev, ok := currentDeviceAndRoom(s)
-	if !ok {
-		return
-	}
-	applyControl(s, dev.Id, key, value)
-	showActions(s)
+	applyText(s, slotID, text)
 }
