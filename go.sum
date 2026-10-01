@@ -1,5 +1,8 @@
+github.com/NurPech/hannah-proto-go/v4 v4.6.0 h1:yjZ9HL+qdx2RuijLTpA2Ahj36hI+rPDxGWBxkuJO3DA=
+github.com/NurPech/hannah-proto-go/v4 v4.6.0/go.mod h1:bo4XFcR2+MA2oNMk9ifNfLvmhT/U1fN9vVfZcfCPsoM=
 github.com/NurPech/hannah-proto-go/v4 v4.7.1 h1:h95vYlGorneAQN2ZP81qbZwFokR+xjQAzk5zwQzuMgM=
 github.com/NurPech/hannah-proto-go/v4 v4.7.1/go.mod h1:bo4XFcR2+MA2oNMk9ifNfLvmhT/U1fN9vVfZcfCPsoM=
+github.com/NurPech/hannah-proto-go/v5 v5.2.0/go.mod h1:vEstl0T0uf00iVu6Pi0s8gExwzpvAnOwCK+UvAsBAxQ=
 github.com/fatih/color v1.19.0 h1:Zp3PiM21/9Ld6FzSKyL5c/BULoe/ONr9KlbYVOfG8+w=
 github.com/fatih/color v1.19.0/go.mod h1:zNk67I0ZUT1bEGsSGyCZYZNrHuTkJJB+r6Q9VuMi0LE=
 github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
