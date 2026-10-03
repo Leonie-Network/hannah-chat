@@ -3,7 +3,7 @@ module hannah-chat
 go 1.26.4
 
 require (
-	github.com/NurPech/hannah-proto-go/v5 v5.2.0
+	github.com/NurPech/hannah-proto-go/v5 v5.3.0
 	github.com/fatih/color v1.19.0
 	gitlab.com/gessinger/hannah-grpc-lib/go v0.6.1
 	golang.org/x/term v0.46.0
